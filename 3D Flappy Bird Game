@@ -14,7 +14,7 @@ sky = Entity(
 
 # Intro screen text
 intro_text = Text(
-    text="Flappy Bird\n\nPress 'Enter' to Start",
+    text="Flappy Bird\n",
     position=(0, 0.2),
     scale=3,
     color=color.white,
@@ -32,7 +32,7 @@ start_button = Button(
 
 # Game over screen text
 game_over_text = Text(
-    text="Game Over\nPress 'R' to Restart",
+    text="Game Over\n",
     position=(0, 0.2),
     scale=2,
     color=color.white,
