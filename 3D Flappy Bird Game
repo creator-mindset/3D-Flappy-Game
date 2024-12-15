@@ -1,0 +1,255 @@
+from ursina import *
+import random
+
+# Initialize Ursina app
+app = Ursina()
+
+# Sky background (using a large quad to simulate the sky)
+sky = Entity(
+    model='quad',
+    scale=(100, 100, 1),  # Large scale to surround the game scene
+    position=(0, 0, 0),
+    color=color.cyan  # Light blue sky color
+)
+
+# Intro screen text
+intro_text = Text(
+    text="Flappy Bird\n\nPress 'Enter' to Start",
+    position=(0, 0.2),
+    scale=3,
+    color=color.white,
+    origin=(0.5, 0.5)
+)
+
+# Start button
+start_button = Button(
+    text="Start",
+    scale=(0.2, 0.1),
+    color=color.azure,
+    position=(0, -0.2),
+    on_click=lambda: start_game()  # Call start_game function on click
+)
+
+# Game over screen text
+game_over_text = Text(
+    text="Game Over\nPress 'R' to Restart",
+    position=(0, 0.2),
+    scale=2,
+    color=color.white,
+    origin=(0.5, 0.5),
+    enabled=False  # Initially disabled
+)
+
+# Restart button
+restart_button = Button(
+    text="Restart",
+    scale=(0.2, 0.1),
+    color=color.green,
+    position=(0, -0.2),
+    enabled=False,  # Initially disabled
+    on_click=lambda: restart_game()  # Call restart_game function on click
+)
+
+# Function to start the game
+def start_game():
+    global game_started
+    game_started = True
+    intro_text.enabled = False
+    start_button.enabled = False
+    spawn_pipe()
+
+# Function to restart the game
+def restart_game():
+    global game_started, score, bird, pipes
+    score = 0
+    score_text.text = f'Score: {score}'
+    
+    # Reset bird's position and velocity
+    bird.position = (-5, 0, 0)
+    bird_velocity = 0
+    
+    # Clear existing pipes
+    for pipe_top, pipe_bottom in pipes:
+        pipe_top.disable()
+        pipe_bottom.disable()
+    pipes.clear()
+
+    # Enable the start screen again
+    game_over_text.enabled = False
+    restart_button.enabled = False
+    
+    # Restart the game
+    start_game()
+
+# Cube-shaped Bird setup
+bird = Entity(
+    model='cube',  # Changed from sphere to cube
+    color=color.orange,
+    scale=(0.5, 0.5, 0.5),
+    position=(-5, 0, 0),
+    collider='box'  # Using box collider for better interaction with pipes
+)
+
+# Add cuboid beak to the bird
+beak = Entity(
+    parent=bird,  # Attach to the bird
+    model='cube',  # Cuboid for the beak
+    color=color.yellow,
+    scale=(0.15, 0.05, 0.05),  # Beak is cuboidal
+    position=(0.35, 0, 0)  # Positioned to the front of the bird
+)
+
+# Add eyes to the bird (spherical eyes)
+eye_left = Entity(
+    parent=bird,  # Attach to the bird
+    model='sphere',
+    color=color.white,
+    scale=0.1,
+    position=(-0.1, 0.15, 0.2)  # Offset for left eye
+)
+
+eye_right = Entity(
+    parent=bird,  # Attach to the bird
+    model='sphere',
+    color=color.white,
+    scale=0.1,
+    position=(-0.1, 0.15, -0.2)  # Offset for right eye
+)
+
+# Add pupils to the eyes
+pupil_left = Entity(
+    parent=eye_left,  # Attach to the left eye
+    model='sphere',
+    color=color.black,
+    scale=0.05,
+    position=(0.05, 0, 0.05)  # Centered on the eye
+)
+
+pupil_right = Entity(
+    parent=eye_right,  # Attach to the right eye
+    model='sphere',
+    color=color.black,
+    scale=0.05,
+    position=(0.05, 0, 0.05)  # Centered on the eye
+)
+
+# Ground setup
+ground = Entity(
+    model='quad',
+    scale=(20, 0.5, 1),
+    color=color.brown,
+    position=(0, -5, 0),
+    collider='box'
+)
+
+# Variables
+pipes = []
+gravity = 0.02
+bird_velocity = 0
+score = 0
+score_text = Text(text=f'Score: {score}', position=(-0.85, 0.45), scale=2, color=color.white)
+
+# Function to create pipes
+def spawn_pipe():
+    x_pos = 15  # Increase the initial horizontal distance between pipes and bird
+    gap = 3.5
+    pipe_height = random.uniform(-2, 2)
+
+    pipe_top = Entity(
+        model='cube',
+        color=color.green,
+        scale=(1, 5, 1),
+        position=(x_pos, pipe_height + gap / 2 + 2.5, 0),
+        collider='box'
+    )
+
+    pipe_bottom = Entity(
+        model='cube',
+        color=color.green,
+        scale=(1, 5, 1),
+        position=(x_pos, pipe_height - gap / 2 - 2.5, 0),
+        collider='box'
+    )
+
+    pipes.append((pipe_top, pipe_bottom))
+
+# Function to create clouds
+def spawn_cloud():
+    cloud = Entity(
+        model='cube',
+        color=color.white,
+        scale=(2, 1, 2),  # Cubical shape for the cloud
+        position=(random.uniform(10, 20), random.uniform(2, 5), 0),
+        collider='box'
+    )
+    return cloud
+
+# Cloud movement update
+def move_clouds():
+    for cloud in clouds:
+        cloud.x -= 0.1  # Move clouds to the left
+        if cloud.x < -10:  # Reset position when cloud moves off-screen
+            cloud.x = random.uniform(10, 20)
+            cloud.y = random.uniform(2, 5)
+
+# Update function (runs every frame)
+def update():
+    global bird_velocity, score
+
+    if not game_started:
+        return  # Prevent the game from updating if it hasn't started
+
+    # Apply gravity
+    bird.y -= bird_velocity
+    bird_velocity += gravity
+
+    # Collision with the ground
+    if bird.intersects(ground).hit:
+        game_over()
+
+    # Update pipes
+    for pipe_top, pipe_bottom in pipes:
+        pipe_top.x -= 0.2  # Adjust speed
+        pipe_bottom.x -= 0.2  # Adjust speed
+
+        # Collision detection with pipes
+        if bird.intersects(pipe_top).hit or bird.intersects(pipe_bottom).hit:
+            game_over()
+
+        # Update score
+        if pipe_top.x < bird.x and not hasattr(pipe_top, 'scored'):
+            score += 1
+            score_text.text = f'Score: {score}'
+            setattr(pipe_top, 'scored', True)
+
+    # Remove off-screen pipes
+    pipes[:] = [pipe for pipe in pipes if pipe[0].x > -10]
+
+    # Spawn new pipes if needed
+    if len(pipes) == 0 or (pipes and pipes[-1][0].x < 5):
+        spawn_pipe()
+
+    # Move clouds
+    move_clouds()
+
+# Input function (called on key press)
+def input(key):
+    global bird_velocity
+    if key == 'space':
+        bird_velocity = -0.3
+    elif key == 'r' and not game_started:
+        restart_game()  # Restart the game if 'R' is pressed
+
+# Function to show the game over screen
+def game_over():
+    global game_started
+    game_started = False
+    game_over_text.enabled = True
+    restart_button.enabled = True
+
+# Global variable to check if the game has started
+game_started = False
+
+# Start the game
+clouds = [spawn_cloud() for _ in range(5)]  # Spawn initial clouds
+app.run()
